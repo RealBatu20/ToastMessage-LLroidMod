@@ -6,6 +6,7 @@
 
 #include "ui/Overlay.h"
 #include "util/Logger.h"
+#include "util/PreloaderOptional.h"
 
 namespace toast_message::input {
 
@@ -49,7 +50,14 @@ bool onTouch(int action, int /*pointerId*/, float x, float y) {
 } // namespace
 
 bool init() {
-    PreloaderInput_Interface *api = GetPreloaderInput();
+    // GetPreloaderInput is resolved via dlsym, not called directly: see
+    // util/PreloaderOptional.h for why a hard-linked reference to an optional
+    // preloader symbol crashes the whole mod's dlopen on launcher builds that
+    // don't export it.
+    using GetPreloaderInputFn = PreloaderInput_Interface *(*)();
+    auto *getPreloaderInput =
+        reinterpret_cast<GetPreloaderInputFn>(preloader_optional::resolveSymbol("GetPreloaderInput"));
+    PreloaderInput_Interface *api = getPreloaderInput ? getPreloaderInput() : nullptr;
     if (!api || !api->RegisterTouchCallback) {
         log::warn("Preloader input interface unavailable; virtual keyboard touch "
                   "input will not work.");

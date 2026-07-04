@@ -1,7 +1,8 @@
-// Link-time-only stub for the LeviLauncher preloader runtime.
+// Link-time-only stub for the LeviLauncher preloader runtime's core GlossHook
+// API.
 //
-// The real GlossInit/GlossOpen/GlossSymbol/GlossHook/GlossHookDisable,
-// GetPreloaderModMenu and GetPreloaderInput are implemented by the launcher's
+// GlossInit/GlossOpen/GlossSymbol/GlossHook/GlossHookDisable are foundational
+// to every LeviLauncher build and are implemented by the launcher's
 // libpreloader.so, which is already loaded (with soname "libpreloader.so")
 // in the host process before any mod .so is dlopen'd. Android's dynamic
 // linker only resolves a dlopen'd library's undefined symbols against
@@ -22,12 +23,15 @@
 // libpreloader.so supplied by the launcher (matched by soname, not by
 // filesystem path), so calls are dispatched to the real implementation, and
 // the bodies defined here are never executed.
-#define PRELOADER_EXPORT
-
+//
+// GetPreloaderModMenu and GetPreloaderInput are deliberately NOT declared
+// here. Those belong to separate, newer preloader subsystems (mod-menu UI,
+// touch/key input bridging) that are not guaranteed to be present in every
+// installed preloader-android build - hard-linking either one crashed
+// dlopen on a user's device that lacked the mod-menu API (confirmed via
+// logcat: "cannot locate symbol GetPreloaderModMenu"). They are resolved at
+// runtime via dlsym instead; see util/PreloaderOptional.h.
 #include "pl/Gloss.h"
-#include "pl/c/PreloaderInput.h"
-#include "pl/c/PreloaderModMenu.h"
-#include "pl/c/Signature.h"
 
 extern "C" {
 
@@ -44,13 +48,5 @@ GLOSS_API GHook GlossHook(void* /*sym_addr*/, void* /*new_func*/, void** /*old_f
 }
 
 GLOSS_API void GlossHookDisable(GHook /*hook*/) {}
-
-PLAPI PLModMenu_Interface* GetPreloaderModMenu(void) { return nullptr; }
-
-PLAPI PreloaderInput_Interface* GetPreloaderInput(void) { return nullptr; }
-
-PLAPI uintptr_t pl_resolve_signature(const char* /*signature*/, const char* /*moduleName*/) {
-    return 0;
-}
 
 } // extern "C"

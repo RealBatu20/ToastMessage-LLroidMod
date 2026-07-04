@@ -14,7 +14,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(MOD_ID "toast-message" CACHE STRING "LeviLauncher mod package directory name")
 set(MOD_NAME "Toast Message" CACHE STRING "LeviLauncher mod display name")
 set(MOD_AUTHOR "kyrocute" CACHE STRING "LeviLauncher mod author")
-set(MOD_VERSION "0.1.1" CACHE STRING "LeviLauncher mod version")
+set(MOD_VERSION "0.1.2" CACHE STRING "LeviLauncher mod version")
 set(MOD_LIBRARY_NAME "toast_message" CACHE STRING "Native library name without lib prefix or .so suffix")
 set(MOD_MINECRAFT_VERSIONS "[\"1.26.*\"]" CACHE STRING "Raw JSON array for manifest minecraft_versions")
 set(MOD_ICON "" CACHE STRING "Optional package-relative icon path, such as icon.png")
@@ -178,6 +178,7 @@ add_library(${MOD_LIBRARY_NAME} SHARED
     src/ui/Overlay.cpp
     src/ui/ImGuiRenderer.cpp
     src/android/InputBridge.cpp
+    src/util/PreloaderOptional.cpp
     third_party/imgui_virtual_keyboard.cpp
 )
 
@@ -205,6 +206,7 @@ find_library(log-lib log REQUIRED)
 find_library(egl-lib EGL REQUIRED)
 find_library(gles-lib GLESv3 REQUIRED)
 find_library(android-lib android REQUIRED)
+find_library(dl-lib dl REQUIRED)
 
 target_link_libraries(${MOD_LIBRARY_NAME} PRIVATE
     imgui
@@ -213,6 +215,7 @@ target_link_libraries(${MOD_LIBRARY_NAME} PRIVATE
     ${egl-lib}
     ${gles-lib}
     ${android-lib}
+    ${dl-lib}
     nlohmann_json::nlohmann_json
     Boost::pfr
     magic_enum::magic_enum
