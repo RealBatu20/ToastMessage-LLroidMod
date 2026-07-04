@@ -10,6 +10,7 @@
 #include "toast/ToastBridge.h"
 #include "ui/ImGuiRenderer.h"
 #include "ui/Overlay.h"
+#include "util/PreloaderOptional.h"
 
 namespace toast_message {
 
@@ -74,13 +75,22 @@ bool MyMod::enable() {
     if (!renderReady)
         self.getLogger().warn("Renderer not installed; ImGui overlay unavailable");
 
-    // Register a mod-menu toggle button.
+    // Register a mod-menu toggle button. GetPreloaderModMenu is resolved via
+    // dlsym and the result passed explicitly (never call registerButton()
+    // with no argument): its default parameter calls GetPreloaderModMenu()
+    // directly at the call site, which hard-links the symbol and crashes
+    // dlopen on launcher builds that don't export the mod-menu API - see
+    // util/PreloaderOptional.h.
+    auto *getPreloaderModMenu = reinterpret_cast<PLModMenu_Interface *(*)()>(
+        preloader_optional::resolveSymbol("GetPreloaderModMenu"));
+    PLModMenu_Interface *menu = getPreloaderModMenu ? getPreloaderModMenu() : nullptr;
     const bool buttonRegistered = pl::modmenu::ButtonBuilder("toast_message_toggle", "Toast Message")
                                       .behavior(PL_BUTTON_CLICK)
                                       .onEvent(&onMenuButton)
-                                      .registerButton();
+                                      .registerButton(menu);
     if (!buttonRegistered)
-        self.getLogger().warn("Failed to register mod-menu toggle button");
+        self.getLogger().warn("Mod-menu toggle button unavailable (mod-menu API not present on this "
+                               "LeviLauncher build); use in-game overlay toggle instead");
 
     self.getLogger().info("Toast Message enabled");
     return true;
