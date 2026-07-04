@@ -165,10 +165,20 @@ target_compile_options(${MOD_LIBRARY_NAME}
         $<$<COMPILE_LANG_AND_ID:CXX,Clang,GNU>:-fvisibility=hidden -fvisibility-inlines-hidden -O2 -ffunction-sections -fdata-sections>
 )
 
+# The preloader runtime (GlossInit/Open/Symbol/Hook/HookDisable,
+# GetPreloaderModMenu, GetPreloaderInput, pl_resolve_signature, ...) is provided
+# by the launcher's libpreloader.so, already loaded with global scope. Mods
+# resolve these symbols at load time, so the mod .so is intentionally linked with
+# undefined symbols. The Android NDK toolchain defaults to -Wl,--no-undefined
+# (with --fatal-warnings), which would reject them at link time, so we strip that
+# and tell the linker to leave unresolved symbols to the runtime loader.
+string(REPLACE "-Wl,--no-undefined" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+
 target_link_options(${MOD_LIBRARY_NAME}
     PRIVATE
         "-Wl,-z,max-page-size=16384"
         "-Wl,--gc-sections"
+        "-Wl,--unresolved-symbols=ignore-all"
 )
 
 find_library(log-lib log REQUIRED)
