@@ -67,7 +67,7 @@ bool MyMod::enable() {
 
     ui::setConfig(&configFile->value());
 
-    if (!ToastBridge::instance().init())
+    if (!ToastBridge::instance().init(configFile->value()))
         self.getLogger().warn("ToastBridge init incomplete; see log above");
 
     input::init();

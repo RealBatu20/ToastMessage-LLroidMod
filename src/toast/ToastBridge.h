@@ -3,6 +3,7 @@
 #include <atomic>
 #include <string>
 
+#include "mod/Config.h"
 #include "toast/ToastTypes.h"
 
 namespace toast_message {
@@ -37,8 +38,12 @@ class ToastBridge {
     static ToastBridge &instance();
 
     // Resolve symbols and install the capture hook. Safe to call once during
-    // enable(). Returns false if the required symbols are unavailable.
-    bool init();
+    // enable(). `config`'s pushToastSymbol/toastCtor3Symbol/toastCtor7Symbol/
+    // toastDtorSymbol override the built-in defaults from signatures/Symbols.h
+    // when non-empty, so a wrong or version-specific symbol can be corrected
+    // via config.json without a new mod build. Returns false if the required
+    // symbols are unavailable.
+    bool init(const ModConfig &config);
 
     // Remove the capture hook. Called from disable()/unload().
     void shutdown();

@@ -27,6 +27,23 @@ struct ModConfig {
     // just the text. Both are applied live from the overlay sliders.
     float uiScale = 2.0f;
     float fontScale = 1.5f;
+
+    // Optional overrides for the mangled ToastMessage/ToastManager symbol
+    // names ToastBridge resolves in libminecraftpe.so (see
+    // signatures/Symbols.h). Leave empty to use the mod's built-in defaults.
+    //
+    // These names are Minecraft-build-specific and can change between game
+    // versions (or simply be wrong if not yet verified against a given
+    // build's real export table). If ToastBridge logs "Missing required
+    // ToastMessage symbols", extract the real mangled names for your
+    // installed libminecraftpe.so with IDA Pro / Ghidra (locate
+    // ToastManager::pushToast and the ToastMessage constructor/destructor,
+    // copy the exported name from the Exports view, and verify with
+    // `c++filt`), then set them here instead of waiting for a mod update.
+    std::string pushToastSymbol;
+    std::string toastCtor3Symbol;
+    std::string toastCtor7Symbol;
+    std::string toastDtorSymbol;
 };
 
 nlohmann::json makeDefaultConfigJson();
@@ -63,6 +80,22 @@ template <> struct pl::config::Schema<toast_message::ModConfig> {
             return {.title = "UI Scale", .description = "Live ImGui interface scale."};
         if (name == "fontScale")
             return {.title = "Font Scale", .description = "Live ImGui font scale."};
+        if (name == "pushToastSymbol")
+            return {.title = "pushToast Symbol Override",
+                    .description = "Mangled ToastManager::pushToast symbol for your exact "
+                                   "Minecraft build. Leave empty to use the built-in default."};
+        if (name == "toastCtor3Symbol")
+            return {.title = "ToastMessage Ctor(3) Symbol Override",
+                    .description = "Mangled 3-arg ToastMessage constructor symbol. Leave empty "
+                                   "to use the built-in default."};
+        if (name == "toastCtor7Symbol")
+            return {.title = "ToastMessage Ctor(7) Symbol Override",
+                    .description = "Mangled 7-arg (player-messaging) ToastMessage constructor "
+                                   "symbol. Leave empty to use the built-in default."};
+        if (name == "toastDtorSymbol")
+            return {.title = "ToastMessage Dtor Symbol Override",
+                    .description = "Mangled ToastMessage destructor symbol. Leave empty to use "
+                                   "the built-in default."};
         return {};
     }
 };

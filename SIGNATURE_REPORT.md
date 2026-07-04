@@ -26,13 +26,30 @@ Classification:
   stripped of many exports. If `GlossSymbol` returns 0, the log prints exactly
   which symbol was missing and the mod disables sending rather than crashing.
 
+**Confirmed on-device (v0.1.3):** the built-in names above failed to resolve
+against at least one real Minecraft 1.26.30+ build ("Missing required
+ToastMessage symbols" in logcat). No binary or disassembler access was
+available while fixing this, so the built-in defaults could not be
+corrected/verified in this release - see the override mechanism below for
+the fastest way to unblock a specific build without waiting for a mod update.
+
+## Config override (no rebuild required)
+
+`ModConfig` (`src/mod/Config.h`) exposes `pushToastSymbol`, `toastCtor3Symbol`,
+`toastCtor7Symbol` and `toastDtorSymbol`. Any of these set in `config.json`
+override the corresponding built-in default in `Symbols.h` for that install,
+so a symbol name that's wrong for your specific Minecraft build can be
+corrected immediately without a new mod release - see "Regenerating for a
+new / stripped build" below to obtain the real value.
+
 ## Regenerating for a new / stripped build
 
 1. Open `libminecraftpe.so` (arm64-v8a) in IDA Pro (with the IDA Pro MCP) or
    Ghidra.
 2. In the Exports/Names view, search `ToastManager` / `ToastMessage`.
-   - If present: copy the mangled name into `Symbols.h` and confirm with
-     `c++filt`.
+   - If present: put the mangled name in `config.json` (see "Config override"
+     above) to confirm it fixes resolution, then copy it into `Symbols.h` as
+     the new built-in default and confirm with `c++filt`.
    - If stripped: locate `ToastManager::pushToast` by xrefs from achievement /
      invite code, derive a byte-pattern signature, and swap the resolver to
      `pl_resolve_signature(SIG, "libminecraftpe.so")` (see `pl/c/Signature.h`).
