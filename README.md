@@ -77,7 +77,7 @@ cmake -S . -B build-arm64-v8a -G Ninja \
 cmake --build build-arm64-v8a --target levi_package
 ```
 
-The `.levipack` is written to `build-arm64-v8a/toast-message-0.1.0-arm64-v8a.levipack`
+The `.levipack` is written to `build-arm64-v8a/toast-message-0.1.1-arm64-v8a.levipack`
 and contains `manifest.json`, `libtoast_message.so`, and the `config/` files.
 
 ## Install

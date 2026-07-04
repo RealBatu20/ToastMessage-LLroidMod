@@ -4,14 +4,14 @@
 
 ```bash
 ANDROID_HOME=~/Android/Sdk ./scripts/build.sh arm64-v8a
-# -> build-arm64-v8a/toast-message-0.1.0-arm64-v8a.levipack
+# -> build-arm64-v8a/toast-message-0.1.1-arm64-v8a.levipack
 ```
 
 Confirm the package contains `libtoast_message.so`, `manifest.json`, and
 `config/config.json` + `config/config.schema.json`:
 
 ```bash
-unzip -l build-arm64-v8a/toast-message-0.1.0-arm64-v8a.levipack
+unzip -l build-arm64-v8a/toast-message-0.1.1-arm64-v8a.levipack
 ```
 
 ## On-device checklist
