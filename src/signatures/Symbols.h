@@ -19,8 +19,10 @@ namespace toast_message::symbols {
 // build ("Missing required ToastMessage symbols"), meaning either this
 // specific Minecraft build mangles/names them differently, or (more likely
 // for a release/stripped binary) these symbols are not exported at all and
-// require signature/byte-pattern scanning (pl::signature::resolveSignature)
-// instead of a symbol-table lookup - that also requires disassembler access
+// require signature/byte-pattern scanning (pl_resolve_signature(), declared in
+// pl/c/Signature.h - also available as the C++ wrapper
+// pl::signature::resolveSignature() in pl/cpp/Signature.hpp) instead of a
+// symbol-table lookup - that also requires disassembler access
 // to a real binary to derive and verify, which has not been done here either.
 //
 // They are resolved at runtime with GlossSymbol(); if unresolved, resolution
