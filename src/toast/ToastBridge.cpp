@@ -64,7 +64,7 @@ ToastBridge &ToastBridge::instance() {
     return bridge;
 }
 
-bool ToastBridge::init() {
+bool ToastBridge::init(const ModConfig &config) {
     if (mReady.load())
         return true;
 
@@ -74,14 +74,29 @@ bool ToastBridge::init() {
         return false;
     }
 
-    gPushToast = reinterpret_cast<PushToastFn>(GlossSymbol(handle, symbols::kPushToast, nullptr));
-    gCtor3 = reinterpret_cast<Ctor3Fn>(GlossSymbol(handle, symbols::kToastCtor3, nullptr));
-    gCtor7 = reinterpret_cast<Ctor7Fn>(GlossSymbol(handle, symbols::kToastCtor7, nullptr));
-    gDtor = reinterpret_cast<DtorFn>(GlossSymbol(handle, symbols::kToastDtor, nullptr));
+    // A non-empty config override replaces the built-in default, so a wrong
+    // or Minecraft-version-specific mangled name can be corrected via
+    // config.json without waiting for a new mod build.
+    const char *pushToastSymbol =
+        config.pushToastSymbol.empty() ? symbols::kPushToast : config.pushToastSymbol.c_str();
+    const char *ctor3Symbol =
+        config.toastCtor3Symbol.empty() ? symbols::kToastCtor3 : config.toastCtor3Symbol.c_str();
+    const char *ctor7Symbol =
+        config.toastCtor7Symbol.empty() ? symbols::kToastCtor7 : config.toastCtor7Symbol.c_str();
+    const char *dtorSymbol =
+        config.toastDtorSymbol.empty() ? symbols::kToastDtor : config.toastDtorSymbol.c_str();
+
+    gPushToast = reinterpret_cast<PushToastFn>(GlossSymbol(handle, pushToastSymbol, nullptr));
+    gCtor3 = reinterpret_cast<Ctor3Fn>(GlossSymbol(handle, ctor3Symbol, nullptr));
+    gCtor7 = reinterpret_cast<Ctor7Fn>(GlossSymbol(handle, ctor7Symbol, nullptr));
+    gDtor = reinterpret_cast<DtorFn>(GlossSymbol(handle, dtorSymbol, nullptr));
 
     if (!gPushToast || !gCtor3 || !gDtor) {
-        log::error("Missing required ToastMessage symbols (push={}, ctor3={}, dtor={}). "
-                   "Regenerate mangled names for this Minecraft build.",
+        log::error("Missing required ToastMessage symbols (push={}, ctor3={}, dtor={}). This "
+                   "Minecraft build's real mangled names differ from the mod's built-in "
+                   "defaults (which are unverified against your exact build). Extract the real "
+                   "symbols from libminecraftpe.so with IDA Pro/Ghidra and set "
+                   "pushToastSymbol/toastCtor3Symbol/toastDtorSymbol in config.json.",
                    reinterpret_cast<void *>(gPushToast), reinterpret_cast<void *>(gCtor3),
                    reinterpret_cast<void *>(gDtor));
         return false;
