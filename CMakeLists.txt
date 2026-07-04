@@ -169,10 +169,16 @@ target_compile_options(${MOD_LIBRARY_NAME}
 # GetPreloaderModMenu, GetPreloaderInput, pl_resolve_signature, ...) is provided
 # by the launcher's libpreloader.so, already loaded with global scope. Mods
 # resolve these symbols at load time, so the mod .so is intentionally linked with
-# undefined symbols. The Android NDK toolchain defaults to -Wl,--no-undefined
-# (with --fatal-warnings), which would reject them at link time, so we strip that
-# and tell the linker to leave unresolved symbols to the runtime loader.
-string(REPLACE "-Wl,--no-undefined" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+# undefined symbols. The Android NDK toolchain defaults to -Wl,--no-undefined,
+# which would reject them at link time, so we strip only that exact flag and tell
+# the linker to leave unresolved symbols to the runtime loader.
+#
+# NOTE: use a boundary-anchored regex, not string(REPLACE). A plain substring
+# replace of "-Wl,--no-undefined" also mangles the unrelated
+# "-Wl,--no-undefined-version" flag into a bare "-version", which clang rejects
+# with: error: unknown argument '-version'.
+string(REGEX REPLACE "-Wl,--no-undefined( |,|$)" "\\1" CMAKE_SHARED_LINKER_FLAGS " ${CMAKE_SHARED_LINKER_FLAGS} ")
+string(STRIP "${CMAKE_SHARED_LINKER_FLAGS}" CMAKE_SHARED_LINKER_FLAGS)
 
 target_link_options(${MOD_LIBRARY_NAME}
     PRIVATE

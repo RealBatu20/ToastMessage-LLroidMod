@@ -11,10 +11,21 @@ on:
         default: "arm64-v8a"
         type: choice
         options: ["arm64-v8a", "armeabi-v7a", "all"]
+      release_tag:
+        description: "If set (e.g. v0.1.0), create this tag and publish a release with the built .levipack"
+        default: ""
+        type: string
+
+# Default to read-only; the build job opts into contents: write only because it
+# also runs the release-publishing step (tag creation + release upload).
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
       matrix:
         abi: [arm64-v8a]
@@ -31,7 +42,21 @@ jobs:
         id: setup-ndk
         with:
           ndk-version: r28
-          local-cache: true
+          # local-cache disabled: the cached NDK tree is restored incomplete on
+          # this runner (clang++ missing), so every cache-restored run failed at
+          # configure. Force a fresh, complete NDK install each run.
+          local-cache: false
+
+      - name: Verify NDK toolchain
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          CLANGXX="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++"
+          if [ ! -x "$CLANGXX" ]; then
+            echo "::error::NDK clang++ not found or not executable at $CLANGXX"
+            exit 1
+          fi
+          "$CLANGXX" --version
 
       - name: Build and package
         env:
@@ -54,7 +79,9 @@ jobs:
           path: dist/
 
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '') && github.event.inputs.release_tag || github.ref_name }}
+          name: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '') && github.event.inputs.release_tag || github.ref_name }}
           files: dist/*.levipack
