@@ -20,6 +20,12 @@ void *resolveSymbol(const char *symbolName) {
     if (!symbol)
         log::warn("libpreloader.so does not export optional symbol '{}' on this LeviLauncher build",
                   symbolName);
+
+    // RTLD_NOLOAD only bumped the refcount of the already-resident library;
+    // release it here. The symbol address stays valid regardless, since the
+    // launcher keeps its own reference to libpreloader.so for the process
+    // lifetime - this dlclose can't unload it out from under us.
+    dlclose(handle);
     return symbol;
 }
 
