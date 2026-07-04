@@ -14,7 +14,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(MOD_ID "toast-message" CACHE STRING "LeviLauncher mod package directory name")
 set(MOD_NAME "Toast Message" CACHE STRING "LeviLauncher mod display name")
 set(MOD_AUTHOR "kyrocute" CACHE STRING "LeviLauncher mod author")
-set(MOD_VERSION "0.1.0" CACHE STRING "LeviLauncher mod version")
+set(MOD_VERSION "0.1.1" CACHE STRING "LeviLauncher mod version")
 set(MOD_LIBRARY_NAME "toast_message" CACHE STRING "Native library name without lib prefix or .so suffix")
 set(MOD_MINECRAFT_VERSIONS "[\"1.26.*\"]" CACHE STRING "Raw JSON array for manifest minecraft_versions")
 set(MOD_ICON "" CACHE STRING "Optional package-relative icon path, such as icon.png")
@@ -139,6 +139,36 @@ if(NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a" AND
     message(FATAL_ERROR "Unsupported Android ABI: ${CMAKE_ANDROID_ARCH_ABI}")
 endif()
 
+# ---- Preloader link-time stub ------------------------------------------
+# GlossInit/Open/Symbol/Hook/HookDisable, GetPreloaderModMenu, GetPreloaderInput
+# and pl_resolve_signature are implemented by the launcher's own libpreloader.so,
+# already loaded in the host process (as soname "libpreloader.so") before any
+# mod .so is dlopen'd. Android's dynamic linker resolves a dlopen'd library's
+# undefined symbols ONLY against libraries listed in its DT_NEEDED table -
+# unlike glibc it does not fall back to an implicit global/flat symbol search.
+#
+# A prior fix stripped -Wl,--no-undefined and added
+# -Wl,--unresolved-symbols=ignore-all so the mod would still link with these
+# symbols undefined. That satisfies the static linker but produces a mod .so
+# with NO DT_NEEDED entry for libpreloader.so at all, so at runtime dlopen
+# fails with: java.lang.UnsatisfiedLinkError: dlopen failed: cannot locate
+# symbol "GlossInit" - confirmed from on-device logcat.
+#
+# The correct fix: build a tiny stub shared library (never packaged) whose
+# soname is "libpreloader.so", containing dummy definitions of exactly the
+# symbols this mod calls, and link the mod against it normally. That gives
+# the mod .so a real DT_NEEDED="libpreloader.so" entry. At runtime, Android's
+# dynamic linker resolves that dependency by soname against the launcher's
+# already-loaded, identically-named real libpreloader.so (not by filesystem
+# path), so the dummy bodies here are never executed - calls dispatch to the
+# real implementation. Default -Wl,--no-undefined stays enabled so any future
+# unresolved symbol fails loudly at build time instead of at dlopen on-device.
+add_library(preloader_link_stub SHARED
+    third_party/preloader_link_stub.cpp
+)
+set_target_properties(preloader_link_stub PROPERTIES OUTPUT_NAME "preloader")
+target_include_directories(preloader_link_stub PRIVATE "${LEVI_PRELOADER_ROOT}/src")
+
 # ---- Native mod library -----------------------------------------------
 add_library(${MOD_LIBRARY_NAME} SHARED
     src/main.cpp
@@ -165,26 +195,10 @@ target_compile_options(${MOD_LIBRARY_NAME}
         $<$<COMPILE_LANG_AND_ID:CXX,Clang,GNU>:-fvisibility=hidden -fvisibility-inlines-hidden -O2 -ffunction-sections -fdata-sections>
 )
 
-# The preloader runtime (GlossInit/Open/Symbol/Hook/HookDisable,
-# GetPreloaderModMenu, GetPreloaderInput, pl_resolve_signature, ...) is provided
-# by the launcher's libpreloader.so, already loaded with global scope. Mods
-# resolve these symbols at load time, so the mod .so is intentionally linked with
-# undefined symbols. The Android NDK toolchain defaults to -Wl,--no-undefined,
-# which would reject them at link time, so we strip only that exact flag and tell
-# the linker to leave unresolved symbols to the runtime loader.
-#
-# NOTE: use a boundary-anchored regex, not string(REPLACE). A plain substring
-# replace of "-Wl,--no-undefined" also mangles the unrelated
-# "-Wl,--no-undefined-version" flag into a bare "-version", which clang rejects
-# with: error: unknown argument '-version'.
-string(REGEX REPLACE "-Wl,--no-undefined( |,|$)" "\\1" CMAKE_SHARED_LINKER_FLAGS " ${CMAKE_SHARED_LINKER_FLAGS} ")
-string(STRIP "${CMAKE_SHARED_LINKER_FLAGS}" CMAKE_SHARED_LINKER_FLAGS)
-
 target_link_options(${MOD_LIBRARY_NAME}
     PRIVATE
         "-Wl,-z,max-page-size=16384"
         "-Wl,--gc-sections"
-        "-Wl,--unresolved-symbols=ignore-all"
 )
 
 find_library(log-lib log REQUIRED)
@@ -194,6 +208,7 @@ find_library(android-lib android REQUIRED)
 
 target_link_libraries(${MOD_LIBRARY_NAME} PRIVATE
     imgui
+    preloader_link_stub
     ${log-lib}
     ${egl-lib}
     ${gles-lib}
