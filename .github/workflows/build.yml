@@ -31,7 +31,21 @@ jobs:
         id: setup-ndk
         with:
           ndk-version: r28
-          local-cache: true
+          # local-cache disabled: the cached NDK tree is restored incomplete on
+          # this runner (clang++ missing), so every cache-restored run failed at
+          # configure. Force a fresh, complete NDK install each run.
+          local-cache: false
+
+      - name: Verify NDK toolchain
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          CLANGXX="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++"
+          if [ ! -x "$CLANGXX" ]; then
+            echo "::error::NDK clang++ not found or not executable at $CLANGXX"
+            exit 1
+          fi
+          "$CLANGXX" --version
 
       - name: Build and package
         env:
